@@ -3,9 +3,9 @@ name: Salesforce Deployment (deploy)
 on:
   push:
     branches:
-      - develop
-      - uat
-      - prod
+      - Develop
+      - UAT
+      - master
     paths:
       - 'force-app/**'
 
