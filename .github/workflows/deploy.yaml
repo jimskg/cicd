@@ -1,7 +1,7 @@
-name: Salesforce PR Validation
+name: Salesforce Deployment (deploy)
 
 on:
-  pull_request:
+  push:
     branches:
       - develop
       - uat
@@ -10,7 +10,7 @@ on:
       - 'force-app/**'
 
 jobs:
-  validate:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -34,8 +34,8 @@ jobs:
       # -----------------------------
       - name: Resolve target org from branch
         run: |
-          BRANCH_NAME="${{ github.base_ref }}"
-          echo "Target branch: $BRANCH_NAME"
+          BRANCH_NAME="${GITHUB_REF##*/}"
+          echo "Branch name: $BRANCH_NAME"
 
           if [ "$BRANCH_NAME" == "Develop" ]; then
             echo "SF_USERNAME=${{ secrets.DEPLOYMENT_USER_NAME_DEVELOP }}" >> $GITHUB_ENV
@@ -50,7 +50,7 @@ jobs:
             echo "SF_CONSUMER_KEY=${{ secrets.CONSUMER_KEY_PROD }}" >> $GITHUB_ENV
             echo "SF_INSTANCE_URL=${{ vars.INSTANCE_URL_PROD }}" >> $GITHUB_ENV
           else
-            echo "Branch $BRANCH_NAME not configured. Exiting."
+            echo "Branch $BRANCH_NAME is not configured for deployment. Exiting."
             exit 0
           fi
 
@@ -59,7 +59,7 @@ jobs:
           mkdir changed-sources
           sf sgd source delta \
             --to "HEAD" \
-            --from "origin/${{ github.base_ref }}" \
+            --from "HEAD~1" \
             --output changed-sources \
             --generate-delta \
             --source force-app
@@ -71,11 +71,11 @@ jobs:
             --username "$SF_USERNAME" \
             --jwt-key-file server.key \
             --client-id "$SF_CONSUMER_KEY" \
-            --instance-url "$SF_INSTANCE_URL"
+            --instance-url "$SF_INSTANCE_URL" \
+            --set-default
 
-      - name: Validate deployment (check-only)
+      - name: Deploy to Salesforce
         run: |
           sf project deploy start \
             --source-dir changed-sources/force-app \
-            --test-level RunLocalTests \
-            --check-only
+            --test-level RunLocalTests
