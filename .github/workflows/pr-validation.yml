@@ -79,5 +79,5 @@ jobs:
           sf project deploy start \
               --source-dir changed-sources/force-app \
               --test-level RunLocalTests \
-              --dry-run
+              --dry-run \
               --target-org "$SF_USERNAME"
