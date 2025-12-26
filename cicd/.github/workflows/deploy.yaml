@@ -1,0 +1,81 @@
+name: Salesforce Deployment
+
+on:
+  push:
+    branches:
+      - develop
+      - uat
+      - prod
+    paths:
+      - 'force-app/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 2
+
+      - name: Install Salesforce CLI
+        run: npm install @salesforce/cli --global
+
+      - name: Install sfdx-git-delta
+        run: |
+          echo Y | sfdx plugins:install sfdx-git-delta
+
+      # -----------------------------
+      # Resolve org credentials by branch
+      # -----------------------------
+      - name: Resolve target org from branch
+        run: |
+          BRANCH_NAME="${GITHUB_REF##*/}"
+          echo "Branch name: $BRANCH_NAME"
+
+          if [ "$BRANCH_NAME" == "Develop" ]; then
+            echo "SF_USERNAME=${{ secrets.DEPLOYMENT_USER_NAME_DEVELOP }}" >> $GITHUB_ENV
+            echo "SF_CONSUMER_KEY=${{ secrets.CONSUMER_KEY_DEVELOP }}" >> $GITHUB_ENV
+            echo "SF_INSTANCE_URL=${{ vars.INSTANCE_URL_DEVELOP }}" >> $GITHUB_ENV
+          elif [ "$BRANCH_NAME" == "UAT" ]; then
+            echo "SF_USERNAME=${{ secrets.DEPLOYMENT_USER_NAME_UAT }}" >> $GITHUB_ENV
+            echo "SF_CONSUMER_KEY=${{ secrets.CONSUMER_KEY_UAT }}" >> $GITHUB_ENV
+            echo "SF_INSTANCE_URL=${{ vars.INSTANCE_URL_UAT }}" >> $GITHUB_ENV
+          elif [ "$BRANCH_NAME" == "master" ]; then
+            echo "SF_USERNAME=${{ secrets.DEPLOYMENT_USER_NAME_PROD }}" >> $GITHUB_ENV
+            echo "SF_CONSUMER_KEY=${{ secrets.CONSUMER_KEY_PROD }}" >> $GITHUB_ENV
+            echo "SF_INSTANCE_URL=${{ vars.INSTANCE_URL_PROD }}" >> $GITHUB_ENV
+          else
+            echo "Branch $BRANCH_NAME is not configured for deployment. Exiting."
+            exit 0
+          fi
+
+      - name: Generate delta
+        run: |
+          mkdir changed-sources
+          sf sgd source delta \
+            --to "HEAD" \
+            --from "HEAD~1" \
+            --output changed-sources \
+            --generate-delta \
+            --source force-app
+
+      - name: Authenticate to Salesforce (JWT)
+        run: |
+          echo "${{ secrets.JWT_SERVER_KEY }}" > server.key
+          sf org login jwt \
+            --username "$SF_USERNAME" \
+            --jwt-key-file server.key \
+            --client-id "$SF_CONSUMER_KEY" \
+            --instance-url "$SF_INSTANCE_URL" \
+            --set-default
+
+      - name: Deploy to Salesforce
+        run: |
+          sf project deploy start \
+            --source-dir changed-sources/force-app \
+            --test-level RunLocalTests
