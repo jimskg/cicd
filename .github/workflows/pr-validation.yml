@@ -42,14 +42,17 @@ jobs:
             echo "SF_USERNAME=${{ secrets.DEPLOYMENT_USER_NAME_DEVELOP }}" >> $GITHUB_ENV
             echo "SF_CONSUMER_KEY=${{ secrets.CONSUMER_KEY_DEVELOP }}" >> $GITHUB_ENV
             echo "SF_INSTANCE_URL=${{ vars.INSTANCE_URL_DEVELOP }}" >> $GITHUB_ENV
+            echo "SF_TEST_LEVEL=NoTestRun" >> $GITHUB_ENV
           elif [ "$BRANCH_NAME" == "UAT" ]; then
             echo "SF_USERNAME=${{ secrets.DEPLOYMENT_USER_NAME_UAT }}" >> $GITHUB_ENV
             echo "SF_CONSUMER_KEY=${{ secrets.CONSUMER_KEY_UAT }}" >> $GITHUB_ENV
             echo "SF_INSTANCE_URL=${{ vars.INSTANCE_URL_UAT }}" >> $GITHUB_ENV
+            echo "SF_TEST_LEVEL=NoTestRun" >> $GITHUB_ENV
           elif [ "$BRANCH_NAME" == "master" ]; then
             echo "SF_USERNAME=${{ secrets.DEPLOYMENT_USER_NAME_PROD }}" >> $GITHUB_ENV
             echo "SF_CONSUMER_KEY=${{ secrets.CONSUMER_KEY_PROD }}" >> $GITHUB_ENV
             echo "SF_INSTANCE_URL=${{ vars.INSTANCE_URL_PROD }}" >> $GITHUB_ENV
+            echo "SF_TEST_LEVEL=RunLocalTests" >> $GITHUB_ENV
           else
             echo "Branch $BRANCH_NAME not configured. Exiting."
             exit 0
@@ -61,9 +64,9 @@ jobs:
           sf sgd source delta \
             --to "HEAD" \
             --from "origin/${{ github.base_ref }}" \
-            --output changed-sources \
+            --output-dir changed-sources \
             --generate-delta \
-            --source force-app
+            --source-dir force-app
 
       - name: Authenticate to Salesforce (JWT)
         run: |
@@ -72,11 +75,42 @@ jobs:
             --username "$SF_USERNAME" \
             --jwt-key-file server.key \
             --client-id "$SF_CONSUMER_KEY" \
-            --instance-url "$SF_INSTANCE_URL"
+            --instance-url "$SF_INSTANCE_URL" \
+            --set-default
 
       - name: Validate deployment (check-only)
         run: |
           sf project deploy start \
             --source-dir changed-sources/force-app \
-            --test-level RunLocalTests \
-            --check-only
+            --test-level "$SF_TEST_LEVEL" \
+            --dry-run
+            
+          TEST_CLASSES=$(find changed-sources/force-app \
+            -name "*Test.cls" \
+            | sed 's#.*/##' \
+            | sed 's/\.cls//' \
+            | paste -sd "," -)
+
+          if [ "$BRANCH_NAME" == "master" ]; then
+            echo "Production branch detected"
+
+            if [ -z "$TEST_CLASSES" ]; then
+              echo "No test classes found → RunLocalTests"
+              sf project deploy start \
+                --source-dir changed-sources/force-app \
+                --test-level $SF_TEST_LEVEL
+            else
+              echo "Test classes found: $TEST_CLASSES"
+              sf project deploy start \
+                --source-dir changed-sources/force-app \
+                --test-level $SF_TEST_LEVEL \
+                --tests "$TEST_CLASSES" 
+            fi
+
+          else
+            echo "Non-prod branch → NoTestRun"
+            sf project deploy start \
+              --source-dir changed-sources/force-app \
+              --test-level "$SF_TEST_LEVEL" \
+              --dry-run
+          fi
