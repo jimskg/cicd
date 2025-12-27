@@ -72,7 +72,8 @@ jobs:
             --username "$SF_USERNAME" \
             --jwt-key-file server.key \
             --client-id "$SF_CONSUMER_KEY" \
-            --instance-url "$SF_INSTANCE_URL"
+            --instance-url "$SF_INSTANCE_URL" \
+            --set-default
 
       - name: Validate deployment (check-only)
         run: |
