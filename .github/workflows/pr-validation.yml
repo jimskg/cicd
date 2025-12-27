@@ -82,4 +82,5 @@ jobs:
         run: |
           sf project deploy start \
             --source-dir changed-sources/force-app \
+            --test-level "$SF_TEST_LEVEL" \
             --dry-run
