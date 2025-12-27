@@ -42,14 +42,17 @@ jobs:
             echo "SF_USERNAME=${{ secrets.DEPLOYMENT_USER_NAME_DEVELOP }}" >> $GITHUB_ENV
             echo "SF_CONSUMER_KEY=${{ secrets.CONSUMER_KEY_DEVELOP }}" >> $GITHUB_ENV
             echo "SF_INSTANCE_URL=${{ vars.INSTANCE_URL_DEVELOP }}" >> $GITHUB_ENV
+            echo "SF_TEST_LEVEL=NoTestRun" >> $GITHUB_ENV
           elif [ "$BRANCH_NAME" == "UAT" ]; then
             echo "SF_USERNAME=${{ secrets.DEPLOYMENT_USER_NAME_UAT }}" >> $GITHUB_ENV
             echo "SF_CONSUMER_KEY=${{ secrets.CONSUMER_KEY_UAT }}" >> $GITHUB_ENV
             echo "SF_INSTANCE_URL=${{ vars.INSTANCE_URL_UAT }}" >> $GITHUB_ENV
+            echo "SF_TEST_LEVEL=NoTestRun" >> $GITHUB_ENV
           elif [ "$BRANCH_NAME" == "master" ]; then
             echo "SF_USERNAME=${{ secrets.DEPLOYMENT_USER_NAME_PROD }}" >> $GITHUB_ENV
             echo "SF_CONSUMER_KEY=${{ secrets.CONSUMER_KEY_PROD }}" >> $GITHUB_ENV
             echo "SF_INSTANCE_URL=${{ vars.INSTANCE_URL_PROD }}" >> $GITHUB_ENV
+            echo "SF_TEST_LEVEL=RunLocalTests" >> $GITHUB_ENV
           else
             echo "Branch $BRANCH_NAME not configured. Exiting."
             exit 0
@@ -77,6 +80,6 @@ jobs:
 
       - name: Validate deployment (check-only)
         run: |
-          sf project deploy validate \
-              --source-dir changed-sources/force-app \
-              --test-level NoTestRun \
+          sf project deploy start \
+            --source-dir changed-sources/force-app \
+            --dry-run
