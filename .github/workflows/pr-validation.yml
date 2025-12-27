@@ -52,7 +52,7 @@ jobs:
             echo "SF_USERNAME=${{ secrets.DEPLOYMENT_USER_NAME_PROD }}" >> $GITHUB_ENV
             echo "SF_CONSUMER_KEY=${{ secrets.CONSUMER_KEY_PROD }}" >> $GITHUB_ENV
             echo "SF_INSTANCE_URL=${{ vars.INSTANCE_URL_PROD }}" >> $GITHUB_ENV
-            echo "SF_TEST_LEVEL=RunLocalTests" >> $GITHUB_ENV
+            echo "SF_TEST_LEVEL=RunSpecifiedTests" >> $GITHUB_ENV
           else
             echo "Branch $BRANCH_NAME not configured. Exiting."
             exit 0
