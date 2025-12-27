@@ -87,7 +87,7 @@ jobs:
             | paste -sd "," -)
             
           if [ -z "$TEST_CLASSES" ]; then
-            echo "No test classes found → running "$SF_TEST_LEVEL""
+            echo "No test classes found → running $SF_TEST_LEVEL"
             sf project deploy start \
               --source-dir changed-sources/force-app \
               --test-level "$SF_TEST_LEVEL"
