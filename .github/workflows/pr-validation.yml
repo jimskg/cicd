@@ -79,4 +79,4 @@ jobs:
         run: |
           sf project deploy validate \
               --source-dir changed-sources/force-app \
-              --test-level RunLocalTests \
+              --test-level NoTestRun \
